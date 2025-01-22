@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rubix/widgets/ctextf.dart';
@@ -15,23 +13,23 @@ class LoginScr extends StatefulWidget {
 }
 
 class _LoginScrState extends State<LoginScr> {
-  final usernCtlr = TextEditingController();
+  final recepCtlr = TextEditingController();
   final passCtlr = TextEditingController();
   final contCtlr = TextEditingController();
   final nameCtlr = TextEditingController();
-  final instituteNameCtlr = TextEditingController();
-  final instituteAddressCtlr = TextEditingController();
+  final donorNameCtlr = TextEditingController();
+  final donorAddressCtlr = TextEditingController();
   
   bool islogin = false;
-  bool isInstitute = false;
+  bool isDonor = false;
   final formkey = GlobalKey<FormState>();
   
-  String usrname = '';
+  String recepName = '';
   String passname = '';
   String contact = '';
   String name = '';
-  String instituteName = '';
-  String instituteAddress = '';
+  String donorName = '';
+  String donorAddress = '';
   bool isauthen = false;
 
   void submit() async {
@@ -39,10 +37,10 @@ class _LoginScrState extends State<LoginScr> {
     if (!isvalid) {
       return;
     }
-    if (!islogin && !isInstitute && nameCtlr.text.isEmpty) {
+    if (!islogin && !isDonor && nameCtlr.text.isEmpty) {
       return;
     }
-    if (!islogin && isInstitute && instituteNameCtlr.text.isEmpty) {
+    if (!islogin && isDonor && donorNameCtlr.text.isEmpty) {
       return;
     }
 
@@ -54,20 +52,20 @@ class _LoginScrState extends State<LoginScr> {
           isauthen = true;
         });
         final userCredentials = await firebase.signInWithEmailAndPassword(
-          email: usrname,
+          email: recepName,
           password: passname,
         );
         
         
         final userDoc = await FirebaseFirestore.instance
-            .collection(isInstitute ? 'institutes' : 'users')
+            .collection(isDonor ? 'donors' : 'recepients')
             .doc(userCredentials.user!.uid)
             .get();
             
         if (!userDoc.exists) {
           throw FirebaseAuthException(
             code: 'user-not-found',
-            message: 'No ${isInstitute ? 'institute' : 'user'} account found with this email.',
+            message: 'No ${isDonor ? 'donor' : 'recepient'} account found with this email.',
           );
         }
         
@@ -86,29 +84,29 @@ class _LoginScrState extends State<LoginScr> {
           isauthen = true;
         });
         final userCredentials = await firebase.createUserWithEmailAndPassword(
-          email: usrname,
+          email: recepName,
           password: passname,
         );
         
-        if (isInstitute) {
+        if (isDonor) {
          
           await FirebaseFirestore.instance
-              .collection('institutes')
+              .collection('donors')
               .doc(userCredentials.user!.uid)
               .set({
-            'email': usrname,
-            'instituteName': instituteName,
-            'type': 'institute',
+            'email': recepName,
+            'donorName': donorName,
+            'type': 'donor',
           });
         } else {
           // Store user data
           await FirebaseFirestore.instance
-              .collection('users')
+              .collection('recepients')
               .doc(userCredentials.user!.uid)
               .set({
-            'email': usrname,
-            'fullName': name,
-            'type': 'user',
+            'email': recepName,
+            'donorName': name,
+            'type': 'recepient',
           });
         }
         
@@ -158,20 +156,20 @@ class _LoginScrState extends State<LoginScr> {
                     const SizedBox(height: 20),
                     
                     ToggleButtons(
-                      isSelected: [!isInstitute, isInstitute],
+                      isSelected: [!isDonor, isDonor],
                       onPressed: (index) {
                         setState(() {
-                          isInstitute = index == 1;
+                          isDonor = index == 1;
                         });
                       },
                       children: const [
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('Donor'),
+                          child: Text('Recepient'),
                         ),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('Recipient'),
+                          child: Text('Donor'),
                         ),
                       ],
                     ),
@@ -180,7 +178,7 @@ class _LoginScrState extends State<LoginScr> {
                       key: formkey,
                       child: Column(
                         children: [
-                          if (!islogin && !isInstitute)
+                          if (!islogin && !isDonor)
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: TextFormField(
@@ -197,11 +195,11 @@ class _LoginScrState extends State<LoginScr> {
                                 },
                               ),
                             ),
-                          if (!islogin && isInstitute) ...[
+                          if (!islogin && isDonor) ...[
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: TextFormField(
-                                controller: instituteNameCtlr,
+                                controller: donorNameCtlr,
                                 decoration: customInputDecoration(hintText: 'Donor Name'),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -210,7 +208,7 @@ class _LoginScrState extends State<LoginScr> {
                                   return null;
                                 },
                                 onSaved: (value) {
-                                  instituteName = value!;
+                                  donorName = value!;
                                 },
                               ),
                             ),
@@ -221,7 +219,7 @@ class _LoginScrState extends State<LoginScr> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: TextFormField(
-                              controller: usernCtlr,
+                              controller: recepCtlr,
                               decoration: customInputDecoration(
                                 hintText: 'Email',
                               ),
@@ -234,7 +232,7 @@ class _LoginScrState extends State<LoginScr> {
                                 return null;
                               },
                               onSaved: (value) {
-                                usrname = value!;
+                                recepName = value!;
                               },
                             ),
                           ),
