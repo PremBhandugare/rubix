@@ -95,7 +95,7 @@ class _LoginScrState extends State<LoginScr> {
               .doc(userCredentials.user!.uid)
               .set({
             'email': recepName,
-            'donorName': donorName,
+            'fullName': donorName,
             'type': 'donor',
           });
         } else {
@@ -105,7 +105,7 @@ class _LoginScrState extends State<LoginScr> {
               .doc(userCredentials.user!.uid)
               .set({
             'email': recepName,
-            'donorName': name,
+            'fullName': name,
             'type': 'recepient',
           });
         }

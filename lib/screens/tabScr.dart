@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rubix/screens/AuthScr.dart';
+import 'package:rubix/screens/drawScr.dart';
 
 
 class TabScr extends StatefulWidget {
@@ -135,6 +136,9 @@ class _TabScrState extends State<TabScr> {
               },
             ),
           ],
+        ),
+         drawer: Drawer(
+          child: DrawerScreen()
         ),
         body:Center(
           child: Text('hi'),
