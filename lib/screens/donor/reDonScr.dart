@@ -55,137 +55,234 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
   }
 
   Future<void> _submitForm() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
 
-    // Upload image if selected
-    _uploadedImageUrl = await _uploadImage();
+      // Upload image if selected
+      _uploadedImageUrl = await _uploadImage();
 
-    try {
-      // Get the current user's ID
-      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      try {
+        // Get the current user's ID
+        final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-      // Create donation document
-      await firestore.collection('donations').add({
-        'userId': userId, // Store user ID
-        'foodName': foodName,
-        'quantity': quantity,
-         'expirationDate': Timestamp.fromDate(expirationDate!),
-        'foodCategory': foodCategory,
-        'contactDetails': contactDetails,
-        'imageUrl': _uploadedImageUrl,
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': "available",
-        'recipients':{
-          'requests':[],
-          'accepted':null
-        },
+        // Create donation document
+        await firestore.collection('donations').add({
+          'userId': userId, // Store user ID
+          'foodName': foodName,
+          'quantity': quantity,
+          'expirationDate': Timestamp.fromDate(expirationDate!),
+          'foodCategory': foodCategory,
+          'contactDetails': contactDetails,
+          'imageUrl': _uploadedImageUrl,
+          'timestamp': FieldValue.serverTimestamp(),
+          'status': "available",
+          'recipients': {
+            'requests': [],
+            'accepted': null
+          },
+        });
 
-      });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Donation request submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Donation request submitted successfully!')),
-      );
-
-      _formKey.currentState!.reset();
-      setState(() {
-        _image = null;
-        expirationDate = null;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting donation: $e')),
-      );
+        _formKey.currentState!.reset();
+        setState(() {
+          _image = null;
+          expirationDate = null;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting donation: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Donate Food')),
+      appBar: AppBar(
+        title: Text('Donate Food'),
+        backgroundColor: Colors.green,
+      ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Food Name'),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => foodName = value ?? '',
-              ),
-              SizedBox(height: 16),
-              
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Quantity'),
-                keyboardType: TextInputType.number,
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => quantity = int.tryParse(value ?? '') ?? 0,
-              ),
-              SizedBox(height: 16),
-              
-              ListTile(
-                title: Text('Expiration Date'),
-                subtitle: Text(expirationDate?.toString() ?? 'Not selected'),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(Duration(days: 365)),
-                  );
-                  if (date != null) {
-                    setState(() => expirationDate = date);
-                  }
-                },
-              ),
-              
-              DropdownButtonFormField<String>(
-                value: foodCategory,
-                decoration: InputDecoration(labelText: 'Food Category'),
-                items: categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => foodCategory = value ?? 'Fresh');
-                },
-              ),
-              SizedBox(height: 16),
-              
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Contact Details'),
-                maxLines: 3,
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                onSaved: (value) => contactDetails = value ?? '',
-              ),
-              SizedBox(height: 16),
-              
-              ElevatedButton.icon(
-                icon: Icon(Icons.photo_camera),
-                label: Text('Add Photo'),
-                onPressed: _pickImage,
-              ),
-              
-              if (_image != null) ...[
-                SizedBox(height: 8),
-                Image.file(_image!, height: 200),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Food Information',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            labelText: 'Food Name',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.fastfood),
+                          ),
+                          validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                          onSaved: (value) => foodName = value ?? '',
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            labelText: 'Quantity',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.shopping_basket),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                          onSaved: (value) => quantity = int.tryParse(value ?? '') ?? 0,
+                        ),
+                        SizedBox(height: 16),
+                        InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(Duration(days: 365)),
+                            );
+                            if (date != null) {
+                              setState(() => expirationDate = date);
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Expiration Date',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.calendar_today),
+                            ),
+                            child: Text(
+                              expirationDate?.toString().split(' ')[0] ?? 'Select Date',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: foodCategory,
+                          decoration: InputDecoration(
+                            labelText: 'Food Category',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.category),
+                          ),
+                          items: categories.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() => foodCategory = value ?? 'Fresh');
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Contact Information',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            labelText: 'Contact Details',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.contact_phone),
+                          ),
+                          maxLines: 3,
+                          validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                          onSaved: (value) => contactDetails = value ?? '',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Food Image',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        Center(
+                          child: _image == null
+                              ? Icon(Icons.add_a_photo, size: 100, color: Colors.grey)
+                              : Image.file(_image!, height: 200),
+                        ),
+                        SizedBox(height: 16),
+                        Center(
+                          child: ElevatedButton.icon(
+                            icon: Icon(Icons.photo_camera),
+                            label: Text('Add Photo'),
+                            onPressed: _pickImage,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24),
+                ElevatedButton(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Submit Donation',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
               ],
-              
-              SizedBox(height: 24),
-              ElevatedButton(
-                child: const Text('Submit Donation'),
-                onPressed: _submitForm,
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 }
+
