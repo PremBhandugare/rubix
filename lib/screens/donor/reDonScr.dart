@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -23,6 +26,58 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
   DateTime? expirationDate;
   String foodCategory = 'Fresh';
   String contactDetails = '';
+   String address = ''; // New field for address
+  GeoPoint? locationCoordinates;
+  double? latitude;
+  double? longitude;
+
+ Future<void> _convertAddressToCoordinates() async {
+  if (address.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Please enter a valid address'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  const apiKey = 'oyLqwKTDuilIERXSgG5B'; // Your MapTiler API key
+  final encodedAddress = Uri.encodeComponent(address);
+  final url = 'https://api.maptiler.com/geocoding/$encodedAddress.json?key=$apiKey';
+
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['features'].isNotEmpty) {
+        final coordinates = data['features'][0]['center'];
+        setState(() {
+          locationCoordinates = GeoPoint(coordinates[1], coordinates[0]);
+          latitude = coordinates[1];
+          longitude = coordinates[0];
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to find coordinates'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        locationCoordinates = null;
+      }
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Geocoding error: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    locationCoordinates = null;
+  }
+}
+
   
   final List<String> categories = ['Fresh', 'Cooked', 'Canned', 'Packaged'];
 
@@ -54,36 +109,56 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
     }
   }
 
-  Future<void> _submitForm() async {
+   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // Upload image if selected
-      setState(() async {
-        _uploadedImageUrl = (await _uploadImage())!;
-      });
+      // Convert address to coordinates before submission
+    await _convertAddressToCoordinates();
+
+    // Only proceed if coordinates were successfully obtained
+    if (locationCoordinates == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to process location. Please check your address.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+
+     // Upload image if selected
+    String? imageUrl = _image != null 
+        ? await _uploadImage() 
+        : _uploadedImageUrl;
 
       try {
         // Get the current user's ID
         final String? userId = FirebaseAuth.instance.currentUser?.uid;
         
-
-        // Create donation document
-        await firestore.collection('donations').add({
+        // Prepare donation data
+        var donationData = {
           'userId': userId, // Store user ID
           'foodName': foodName,
           'quantity': quantity,
           'expirationDate': Timestamp.fromDate(expirationDate!),
           'foodCategory': foodCategory,
           'contactDetails': contactDetails,
-          'imageUrl': _uploadedImageUrl,
+          'imageUrl': imageUrl,
+          'address': address, // Store raw address
+          'latitude': latitude,
+          'longitude': longitude,
           'timestamp': FieldValue.serverTimestamp(),
           'status': "available",
           'recipients': {
             'requests': [],
             'accepted': null
           },
-        });
+        };
+
+        // Create donation document
+        await firestore.collection('donations').add(donationData);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -96,6 +171,8 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
         setState(() {
           _image = null;
           expirationDate = null;
+          address = '';
+          locationCoordinates = null;
         });
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,6 +184,7 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +281,42 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                   ),
                 ),
                 SizedBox(height: 16),
+                // New Card for Address
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Location Details',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            labelText: 'Full Address',
+                            hintText: 'Enter complete pickup address',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.location_on),
+                          ),
+                          maxLines: 2,
+                          validator: (value) => value?.isEmpty ?? true ? 'Address is required' : null,
+                          onSaved: (value) => address = value ?? '',
+                        ),
+                        SizedBox(height: 8),
+                        if (locationCoordinates != null)
+                          Text(
+                            'Coordinates: ${locationCoordinates!.latitude}, ${locationCoordinates!.longitude}',
+                            style: TextStyle(color: Colors.green),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+
                 Card(
                   elevation: 4,
                   child: Padding(
