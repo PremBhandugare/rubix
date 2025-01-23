@@ -13,11 +13,6 @@ class MyRequestsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My Requests'),
-        backgroundColor: Colors.teal,
-        elevation: 0,
-      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('myRequests')

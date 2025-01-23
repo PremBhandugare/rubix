@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rubix/screens/AuthScr.dart';
+import 'package:rubix/screens/donor/myDonScr.dart';
+import 'package:rubix/screens/donor/shopScr.dart';
 import 'package:rubix/screens/drawScr.dart';
-
+import 'package:rubix/screens/recepient/myreqScr.dart';
+import 'package:rubix/screens/recepient/reqScr.dart';
+import 'package:rubix/widgets/bottomnav.dart';
+String? userId;
+String? emailId;
+String? usernamee;
 
 class TabScr extends StatefulWidget {
   @override
@@ -12,20 +19,78 @@ class TabScr extends StatefulWidget {
 
 class _TabScrState extends State<TabScr> {
   User? userid = FirebaseAuth.instance.currentUser;
-  int currInd = 1;
-  bool isInstitute = false;
-
+  int currInd = 0;
+  bool isInstitute = true;
+  String fullName = 'Loading...';
+  String email = '';
+  String role = '';
+  String emailID = '';
   @override
   void initState() {
     super.initState();
-    checkUserType();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        userId = user.uid;
+        
+        final instituteDoc = await FirebaseFirestore.instance
+            .collection('donors')
+            .doc(user.uid)
+            .get();
+
+        if (instituteDoc.exists) {
+          final data = instituteDoc.data() as Map<String, dynamic>;
+          setState(() {
+            fullName = data['fullName'] ?? 'No Name';
+            email = data['email'] ?? 'No Email';
+            usernamee = data['fullName'] ?? 'No Name';
+            emailId = data['email'] ?? 'No Email';
+            role = 'donor';
+            emailID = user.uid;
+          });
+        } else {
+          
+          final userDoc = await FirebaseFirestore.instance
+              .collection('recepients')
+              .doc(user.uid)
+              .get();
+
+          if (userDoc.exists) {
+            final data = userDoc.data() as Map<String, dynamic>;
+            setState(() {
+              userId = user.uid;
+              fullName = data['fullName'] ?? 'No Name';
+              email = data['email'] ?? 'No Email';
+              usernamee = data['fullName'] ?? 'No Name';
+              emailId = data['email'] ?? 'No Email';
+              role = 'recepient';
+            });
+          } else {
+            setState(() {
+              fullName = 'No User Data';
+              role = 'unknown';
+            });
+          }
+        }
+      }
+    } catch (e) {
+      setState(() {
+        fullName = 'Error loading data';
+        role = 'unknown';
+      });
+    }
   }
 
   Future<void> checkUserType() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('institutes')
+          .collection('donors')
           .doc(user.uid)
           .get();
       setState(() {
@@ -44,106 +109,88 @@ class _TabScrState extends State<TabScr> {
 
   @override
   Widget build(BuildContext context) {
-    String actText = 'Financial Literacy';
+    String actText = 'Food';
+   Widget? actScr;
 
+    switch (currInd) {
+      case 0:
+        if (role == 'donor') {
+          actScr = DonationShopScreen();
+        } else {
+          actScr = AvailableDonationsScreen(currentUserId: userid!.uid, currentUserEmail: userId!, currentUserName: usernamee!);
+        }
+        actText = 'Home';
+        break;
+      case 1:
+        if (role == 'donor') {
+          actScr = MyDonationsScreen(currentUserId: userid!.uid);
+        } else {
+          actScr = MyRequestsScreen(currentUserId: userid!.uid);
+        }
+        actText = 'My Activity';
+        break;
+    }
   
 
     return WillPopScope(
       onWillPop: () async {
-        if (currInd != 1) {
+        if (currInd != 0) {
           setState(() {
-            currInd = 1;
+            currInd = 0;
           });
           return false;
         } else {
           return true;
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
-          foregroundColor: Colors.white,
-          title: Text(
-            actText,
-            style: Theme.of(context).textTheme.titleLarge!.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold
-            ),
+      child: SafeArea(
+        child: Scaffold(
+          drawer: Drawer(
+            child: DrawerScreen()
           ),
-          actions: [
-            StreamBuilder<User?>(
-              stream: FirebaseAuth.instance.authStateChanges(),
-              builder: (ctx, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-            
-                if (snapshot.hasData) {
-                  return TextButton(
-                    onPressed: () async {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Confirm Logout'),
-                            content: const Text('Are you sure you want to logout?'),
-                            actions: <Widget>[
-                              TextButton(
-                                child: const Text('Cancel'),
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                              ),
-                              TextButton(
-                                child: const Text('Yes'),
-                                onPressed: () async {
-                                  await FirebaseAuth.instance.signOut();
-                                  Navigator.of(context).pop();
-                                  setState(() {
-                                    isInstitute = false;
-                                    currInd = 1;
-                                  });
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    child: const Text(
-                      'Signout',
-                      style: TextStyle(color: Colors.white),
-                    )
-                  );
-                }
-            
-                return TextButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      ModalBottomSheetRoute(
-                        builder: (ctx) {
-                          return const LoginScr();
-                        },
-                        isScrollControlled: false
-                      )
-                    );
-                  },
-                  child: const Text(
-                    'Signin',
-                    style: TextStyle(color: Colors.white),
-                  )
-                );
-              },
+          body:Stack(
+          children: [
+            // Main Screen Content
+            Padding(
+              padding: EdgeInsets.fromLTRB(0, 40, 0, 64),
+              child: actScr!,
+            ),
+
+            // Floating Menu Button to Open Drawer
+            Builder(
+              builder: (context) => Positioned(
+                top: 16,
+                left: 16,
+                child: GestureDetector(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  child: Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.menu,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom Navigation Bar
+            Positioned(
+              bottom: 3,
+              left: 25,
+              right: 25,
+              child: BottomNavBar(
+                currentIndex: currInd,
+                onTap: selTab,
+              ),
             ),
           ],
         ),
-         drawer: Drawer(
-          child: DrawerScreen()
-        ),
-        body:Center(
-          child: Text('hi'),
-        ),
       ),
-    );
-  }
-}
+    ),
+  );
+}}

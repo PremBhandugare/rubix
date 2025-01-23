@@ -97,6 +97,7 @@ class _LoginScrState extends State<LoginScr> {
             'email': recepName,
             'fullName': donorName,
             'type': 'donor',
+            'points': 0,
           });
         } else {
           // Store user data

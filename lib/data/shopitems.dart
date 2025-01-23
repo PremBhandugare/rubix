@@ -1,0 +1,58 @@
+final List<Map<String, dynamic>> donationShopItems = [
+  {
+    'name': 'Canned Tomatoes',
+    'price': 80,
+    'category': 'Canned',
+    'imageUrl': 'https://assets.shop.loblaws.ca/products/21206804/b2/en/front/21206804_front_a06_@2.png',
+    'quantity': 10,
+  },
+  {
+    'name': 'Fresh Broccoli',
+    'price': 60,
+    'category': 'Fresh',
+    'imageUrl': 'https://www.freshaisle.com/cdn/shop/files/fresh-broccoli-exotic-vegetables-873.jpg?v=1691216404',
+    'quantity': 40,
+  },
+  {
+    'name': 'Packaged Granola',
+    'price': 90,
+    'category': 'Packaged',
+    'imageUrl': 'https://atasteofkentucky.com/wp-content/uploads/2024/04/Sweetgrass-Granola-Kentucky-Harvest.jpg',
+    'quantity': 20,
+  },
+  {
+    'name': 'Cooked Pasta',
+    'price': 120,
+    'category': 'Cooked',
+    'imageUrl': 'https://en-chatelaine.mblycdn.com/ench/resized/2017/05/900x900/shrimp-primavera-pasta.jpg',
+    'quantity': 10,
+  },
+  {
+    'name': 'Canned Soup',
+    'price': 70,
+    'category': 'Canned',
+    'imageUrl': 'https://assets.woolworths.com.au/images/2010/265279.jpg?impolicy=wowcdxwbjbx&w=900&h=900',
+    'quantity': 10,
+  },
+  {
+    'name': 'Fresh Oranges',
+    'price': 50,
+    'category': 'Fresh',
+    'imageUrl': 'https://m.media-amazon.com/images/I/511LKliR6YL.jpg',
+    'quantity': 20,
+  },
+  {
+    'name': 'Packaged Crackers',
+    'price': 65,
+    'category': 'Packaged',
+    'imageUrl': 'https://content.etilize.com/Out-of-Package/1034879159.jpg',
+    'quantity': 30,
+  },
+  {
+    'name': 'Cooked Rice',
+    'price': 100,
+    'category': 'Cooked',
+    'imageUrl': 'https://minimalistbaker.com/wp-content/uploads/2023/10/Easy-Indian-Style-Jeera-Rice-Instant-Pot-or-Stovetop-SQUARE.jpg',
+    'quantity': 5,
+  },
+];

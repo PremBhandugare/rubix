@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:rubix/screens/recepient/myreqScr.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 
 class AvailableDonationsScreen extends StatelessWidget {
   final String currentUserId;
@@ -21,22 +18,6 @@ class AvailableDonationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Available Donations'),
-        backgroundColor: Colors.green,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.history),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MyRequestsScreen(currentUserId: currentUserId),
-              ),
-            ),
-          ),
-        ],
-      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('donations')
@@ -78,160 +59,176 @@ class AvailableDonationsScreen extends StatelessWidget {
             );
           }
 
-          return AnimationLimiter(
-            child: ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: donations.length,
-              itemBuilder: (context, index) {
-                final donation = donations[index];
-                final data = donation.data() as Map<String, dynamic>;
-                final requests = List<Map<String, dynamic>>.from(
-                  donation['recipients']?['requests'] ?? []
-                );
-                final hasRequested = requests.any(
-                  (r) => r['recipientId'] == currentUserId,
-                );
-
-                return AnimationConfiguration.staggeredList(
-                  position: index,
-                  duration: const Duration(milliseconds: 375),
-                  child: SlideAnimation(
-                    verticalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: DonationCard(
-                        donationId: donation.id,
-                        donation: data,
-                        currentUserId: currentUserId,
-                        currentUserEmail: currentUserEmail,
-                        currentUserName: currentUserName,
-                        hasRequested: hasRequested,
-                      ),
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(width: 30,),
+                  Image.asset(
+                    'assets/globe.png',
+                    height: 30,
+                    width: 30,
+                  ),
+                  const SizedBox(width: 10,),
+                  Text(
+                    'Ahar Setu',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              },
+                
+              
+              _buildHeroSection(),
+              SizedBox(height: 10),
+                _buildHorizontalList(context, donations, 'Fresh'),
+                _buildHorizontalList(context, donations, 'Canned'),
+                _buildHorizontalList(context, donations, 'Cooked'),
+                _buildHorizontalList(context, donations, 'Packaged'),
+              ],
             ),
           );
         },
       ),
     );
   }
-}
 
-class DonationCard extends StatelessWidget {
-  final String donationId;
-  final Map<String, dynamic> donation;
-  final String currentUserId;
-  final String currentUserEmail;
-  final String currentUserName;
-  final bool hasRequested;
+  Widget _buildHorizontalList(BuildContext context, List<QueryDocumentSnapshot> donations, String category) {
+    final filteredDonations = donations.where((donation) {
+      final data = donation.data() as Map<String, dynamic>;
+      return category == 'All Donations' || data['foodCategory'] == category;
+    }).toList();
 
-  const DonationCard({
-    Key? key,
-    required this.donationId,
-    required this.donation,
-    required this.currentUserId,
-    required this.currentUserEmail,
-    required this.currentUserName,
-    required this.hasRequested,
-  }) : super(key: key);
-
-  Future<void> showInterest(BuildContext context) async {
-    try {
-      // First, update the donations collection
-      final donationRef = FirebaseFirestore.instance
-          .collection('donations')
-          .doc(donationId);
-
-      final recipientRequest = {
-        'recipientId': currentUserId,
-        'recipientEmail': currentUserEmail,
-        'recipientName': currentUserName,
-        'timestamp': Timestamp.now(),
-        'status': 'pending'
-      };
-
-      await donationRef.update({
-        'recipients.requests': FieldValue.arrayUnion([recipientRequest])
-      });
-
-      // Then, create a request document in myRequests collection
-      await FirebaseFirestore.instance
-          .collection('myRequests')
-          .doc(currentUserId)
-          .collection('requests')
-          .add({
-        'donationId': donationId,
-        'foodName': donation['foodName'],
-        'quantity': donation['quantity'],
-        'foodCategory': donation['foodCategory'],
-        'donorId': donation['userId'],
-        'status': 'pending',
-        'timestamp': Timestamp.now(),
-        'expirationDate': donation['expirationDate'],
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Request sent successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to send request: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            child: donation['imageUrl'] != null
-                ? Image.network(
-                    donation['imageUrl'],
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: Icon(Icons.no_food, size: 100, color: Colors.grey[400]),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Text(
+            category,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  donation['foodName'],
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+        ),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: filteredDonations.length,
+            itemBuilder: (context, index) {
+              final donation = filteredDonations[index];
+              final data = donation.data() as Map<String, dynamic>;
+              
+              return GestureDetector(
+                onTap: () => _showDonationDetails(context, donation),
+                child: Container(
+                  width: 150,
+                  margin: EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: data['imageUrl'] != null
+                            ? Image.network(
+                                data['imageUrl'],
+                                width: 150,
+                                height: 120,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 150,
+                                height: 120,
+                                color: Colors.grey[300],
+                                child: Icon(Icons.no_food, color: Colors.grey[600]),
+                              ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        data['foodName'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      Text(
+                        'Expires: ${DateFormat('MMM dd').format(data['expirationDate'].toDate())}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showDonationDetails(BuildContext context, QueryDocumentSnapshot donation) {
+    final data = donation.data() as Map<String, dynamic>;
+    final requests = List<Map<String, dynamic>>.from(
+      donation['recipients']?['requests'] ?? []
+    );
+    final hasRequested = requests.any(
+      (r) => r['recipientId'] == currentUserId,
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+  borderRadius: BorderRadius.circular(10),
+  child: SizedBox(
+    width: double.infinity,
+    height: 250,
+    child: data['imageUrl'] != null && data['imageUrl'].isNotEmpty
+      ? Image.network(
+          data['imageUrl'],
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.grey[300],
+            child: Icon(Icons.no_food, size: 100, color: Colors.grey[600]),
+          ),
+        )
+      : Container(
+          color: Colors.grey[300],
+          child: Icon(Icons.no_food, size: 100, color: Colors.grey[600]),
+        ),
+  ),
+),
+                SizedBox(height: 16),
+                Text(
+                  data['foodName'],
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 SizedBox(height: 8),
-                _buildInfoRow(Icons.category, 'Category: ${donation['foodCategory']}'),
-                _buildInfoRow(Icons.shopping_basket, 'Quantity: ${donation['quantity']}'),
-                _buildInfoRow(
-                  Icons.calendar_today,
-                  'Expires: ${DateFormat('MMM dd, yyyy').format(donation['expirationDate'].toDate())}',
+                _buildDetailRow(Icons.category, 'Category', data['foodCategory']),
+                _buildDetailRow(Icons.shopping_basket, 'Quantity', data['quantity'].toString()),
+                _buildDetailRow(
+                  Icons.calendar_today, 
+                  'Expiration Date', 
+                  DateFormat('MMM dd, yyyy').format(data['expirationDate'].toDate())
                 ),
                 SizedBox(height: 16),
                 Center(
                   child: ElevatedButton(
-                    onPressed: hasRequested ? null : () => showInterest(context),
+                    onPressed: hasRequested ? null : () => _showInterest(context, donation),
                     child: Text(
                       hasRequested ? 'Request Sent' : 'Show Interest',
                       style: TextStyle(fontSize: 16),
@@ -248,27 +245,126 @@ class DonationCard extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Icon(icon, size: 18, color: Colors.grey[600]),
           SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-            ),
+          Text(
+            '$label: ',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+          Text(value),
         ],
       ),
     );
   }
-}
 
+  Future<void> _showInterest(BuildContext context, QueryDocumentSnapshot donation) async {
+    try {
+      final donationRef = FirebaseFirestore.instance
+          .collection('donations')
+          .doc(donation.id);
+
+      final recipientRequest = {
+        'recipientId': currentUserId,
+        'recipientEmail': currentUserEmail,
+        'recipientName': currentUserName,
+        'timestamp': Timestamp.now(),
+        'status': 'pending'
+      };
+
+      await donationRef.update({
+        'recipients.requests': FieldValue.arrayUnion([recipientRequest])
+      });
+
+      await FirebaseFirestore.instance
+          .collection('myRequests')
+          .doc(currentUserId)
+          .collection('requests')
+          .add({
+        'donationId': donation.id,
+        'foodName': donation['foodName'],
+        'quantity': donation['quantity'],
+        'foodCategory': donation['foodCategory'],
+        'donorId': donation['userId'],
+        'status': 'pending',
+        'timestamp': Timestamp.now(),
+        'expirationDate': donation['expirationDate'],
+      });
+
+      Navigator.of(context).pop(); // Close the dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Request sent successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send request: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+Widget _buildHeroSection() {
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: Container(
+        margin: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/D2.jpg',
+                fit: BoxFit.cover,
+              ),
+              Positioned(
+                bottom: 5,
+                left: 5,
+                right: 5,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Save Food, Save Lives',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }

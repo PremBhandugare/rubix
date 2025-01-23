@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rubix/screens/donor/myDonScr.dart';
+import 'package:rubix/screens/donor/myPurchase.dart';
 import 'package:rubix/screens/donor/reDonScr.dart';
 import 'package:rubix/screens/recepient/myreqScr.dart';
 import 'package:rubix/screens/recepient/reqScr.dart';
@@ -132,8 +133,7 @@ class _DrawerScreenState extends State<DrawerScreen> {
     return ListTile(
       leading: Icon(Icons.home),
       title: Text('Home'),
-      onTap: () {
-        
+      onTap: () {    
         Navigator.pop(context);
       },
     );
@@ -191,7 +191,7 @@ class _DrawerScreenState extends State<DrawerScreen> {
         
           Navigator.of(context)
           .push(MaterialPageRoute(
-            builder:(ctx)=>MyDonationsScreen(currentUserId: userId!,)));
+            builder:(ctx)=>PurchasesScreen()));
         
         
       },

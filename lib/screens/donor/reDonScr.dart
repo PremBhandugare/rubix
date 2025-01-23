@@ -16,7 +16,7 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final firestore = FirebaseFirestore.instance;
   File? _image;
-  String? _uploadedImageUrl;
+  String _uploadedImageUrl= 'https://st5.depositphotos.com/23188010/77700/i/450/depositphotos_777000678-stock-photo-food-icons-set-vector-illustration.jpg';
   
   String foodName = '';
   int quantity = 0;
@@ -59,11 +59,14 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
       _formKey.currentState!.save();
 
       // Upload image if selected
-      _uploadedImageUrl = await _uploadImage();
+      setState(() async {
+        _uploadedImageUrl = (await _uploadImage())!;
+      });
 
       try {
         // Get the current user's ID
         final String? userId = FirebaseAuth.instance.currentUser?.uid;
+        
 
         // Create donation document
         await firestore.collection('donations').add({
@@ -218,7 +221,8 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.contact_phone),
                           ),
-                          maxLines: 3,
+                          maxLines: 1,
+                          keyboardType: TextInputType.phone,
                           validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                           onSaved: (value) => contactDetails = value ?? '',
                         ),
@@ -251,8 +255,10 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                             label: Text('Add Photo'),
                             onPressed: _pickImage,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
+                              backgroundColor: const Color.fromARGB(255, 239, 239, 239),
                               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ),
@@ -266,7 +272,7 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
                       'Submit Donation',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(color: Colors.white,fontSize: 18),
                     ),
                   ),
                   onPressed: _submitForm,

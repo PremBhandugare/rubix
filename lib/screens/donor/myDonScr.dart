@@ -1,27 +1,85 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
-class MyDonationsScreen extends StatelessWidget {
+class MyDonationsScreen extends StatefulWidget {
   final String currentUserId;
 
   const MyDonationsScreen({Key? key, required this.currentUserId}) : super(key: key);
 
   @override
+  _MyDonationsScreenState createState() => _MyDonationsScreenState();
+}
+
+class _MyDonationsScreenState extends State<MyDonationsScreen> {
+ String _selectedFilter = 'ongoing';
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('My Donations'),
-        backgroundColor: Colors.green,
-        elevation: 0,
+      appBar:AppBar( // Optional: Customize AppBar background color
+  flexibleSpace: Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min, // Ensures minimal space usage
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TextButton(
+            onPressed: () => setState(() => _selectedFilter = 'ongoing'),
+            child: Text(
+              'Ongoing',
+              style: TextStyle(
+                color: _selectedFilter == 'ongoing' ? Colors.white : Colors.white54,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: _selectedFilter == 'ongoing' 
+                  ? Colors.green[700] 
+                  : Colors.green.withOpacity(0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          TextButton(
+            onPressed: () => setState(() => _selectedFilter = 'completed'),
+            child: Text(
+              'Completed',
+              style: TextStyle(
+                color: _selectedFilter == 'completed' ? Colors.white : Colors.white54,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: _selectedFilter == 'completed' 
+                  ? Colors.green[700] 
+                  : Colors.green.withOpacity(0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ],
       ),
+    ),
+  ),
+),
+
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('donations')
-            .where('userId', isEqualTo: currentUserId)
-            .snapshots(),
+        stream: _selectedFilter == 'ongoing'
+            ? FirebaseFirestore.instance
+                .collection('donations')
+                .where('userId', isEqualTo: widget.currentUserId)
+                .where('status', isEqualTo: 'available')
+                .snapshots()
+            : FirebaseFirestore.instance
+                .collection('donations')
+                .where('userId', isEqualTo: widget.currentUserId)
+                .where('status', isEqualTo: 'claimed')
+                .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -47,22 +105,19 @@ class MyDonationsScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.volunteer_activism, size: 100, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No donations yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  Icon(
+                    _selectedFilter == 'ongoing' 
+                      ? Icons.hourglass_empty 
+                      : Icons.check_circle_outline, 
+                    size: 100, 
+                    color: Colors.grey
                   ),
                   SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Navigate to donation creation screen
-                    },
-                    child: Text('Make a Donation'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
+                  Text(
+                    _selectedFilter == 'ongoing' 
+                      ? 'No ongoing donations' 
+                      : 'No completed donations',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
               ),
@@ -81,7 +136,7 @@ class MyDonationsScreen extends StatelessWidget {
                   child: SlideAnimation(
                     verticalOffset: 50.0,
                     child: FadeInAnimation(
-                      child: MyDonationCard(
+                      child: _ImprovedDonationCard(
                         donationId: donations[index].id,
                         donation: donation,
                       ),
@@ -97,11 +152,11 @@ class MyDonationsScreen extends StatelessWidget {
   }
 }
 
-class MyDonationCard extends StatelessWidget {
+class _ImprovedDonationCard extends StatelessWidget {
   final String donationId;
   final Map<String, dynamic> donation;
 
-  const MyDonationCard({
+  const _ImprovedDonationCard({
     Key? key,
     required this.donationId,
     required this.donation,
@@ -109,6 +164,18 @@ class MyDonationCard extends StatelessWidget {
 
   Future<void> handleApproval(BuildContext context, Map<String, dynamic> recipient) async {
     try {
+
+      int pointsToAllocate = donation['quantity'] > 50 ? 20 : 10;
+
+      // Update donor's points
+      await FirebaseFirestore.instance
+          .collection('donors')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .update({
+        'points': FieldValue.increment(pointsToAllocate)
+      });
+      // After updating points
+      _showPointsAchievementDialog(context, pointsToAllocate);
       // Update donation status
       await FirebaseFirestore.instance
           .collection('donations')
@@ -158,7 +225,7 @@ class MyDonationCard extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Request approved successfully!'),
+          content: Text('Request approved! You earned $pointsToAllocate points.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -174,95 +241,115 @@ class MyDonationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requests = List<Map<String, dynamic>>.from(
-      donation['recipients']?['requests'] ?? []
-    );
-    final isAvailable = donation['status'] == 'available';
-    final approvedRecipient = donation['recipients']?['accepted'];
-
     return Card(
       margin: EdgeInsets.only(bottom: 16),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
+        children: [
+          Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Small image on the left
           ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+            borderRadius: BorderRadius.horizontal(left: Radius.circular(12)),
             child: donation['imageUrl'] != null
-                ?Image.network(
+                ? Image.network(
                     donation['imageUrl'],
-                    height: 200,
-                    width: double.infinity,
+                    width: 120,
+                    height: 160,
                     fit: BoxFit.cover,
                   )
                 : Container(
-                    height: 200,
+                    width: 120,
+                    height: 160,
                     color: Colors.grey[300],
-                    child: Icon(Icons.image, size: 100, color: Colors.grey[400]),
+                    child: Icon(Icons.image, size: 60, color: Colors.grey[400]),
                   ),
           ),
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        donation['foodName'],
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+          
+          // Expanded details
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          donation['foodName'],
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                    _buildStatusChip(donation['status']),
-                  ],
-                ),
-                SizedBox(height: 8),
-                _buildInfoRow(Icons.category, 'Category: ${donation['foodCategory']}'),
-                _buildInfoRow(Icons.shopping_basket, 'Quantity: ${donation['quantity']}'),
-                _buildInfoRow(
-                  Icons.calendar_today,
-                  'Expires: ${DateFormat('MMM dd, yyyy').format(donation['expirationDate'].toDate())}',
-                ),
-                
-                SizedBox(height: 16),
-                
-                if (requests.isNotEmpty) ...[
-                  Text(
-                    'Recipient Requests (${requests.length})',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                      _buildStatusChip(donation['status']),
+                    ],
                   ),
                   SizedBox(height: 8),
-                  
-                  if (approvedRecipient != null)
-                    _buildApprovedRecipientTile(approvedRecipient)
-                  else
-                    ...requests.map((request) => _buildRecipientTile(context, request, isAvailable)).toList(),
-                ] else
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(
-                        'No requests yet',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
+                  _buildInfoRow(Icons.category, donation['foodCategory']),
+                  _buildInfoRow(Icons.shopping_basket, donation['quantity']),
+                  _buildInfoRow(
+                    Icons.calendar_today,
+                    DateFormat('MMM dd, yyyy').format(donation['expirationDate'].toDate()),
                   ),
-              ],
+                  SizedBox(height: 10,),
+                ],
+              ),
             ),
           ),
         ],
       ),
+        SizedBox(height: 5,),
+        if (donation['status'] == 'claimed') ...[
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Approved Recipient',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                SizedBox(height: 8),
+                _buildApprovedRecipientTile(donation['recipients']['accepted']),
+              ],
+            ),
+          ),
+        ],
+        if (donation['status'] == 'available') ...[
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Requests',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                SizedBox(height: 8),
+                ...List<Map<String, dynamic>>.from(donation['recipients']['requests']).map((request) {
+                  final isAvailable = request['status'] == 'pending';
+                  return _buildRecipientTile(context, request, isAvailable);
+                }).toList(),
+              ],
+            ),
+          ),
+        ],
+        ],
+      )
     );
   }
 
@@ -294,24 +381,23 @@ class MyDonationCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-            ),
+  Widget _buildInfoRow(IconData icon, dynamic text) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text.toString(),
+            style: TextStyle(fontSize: 14, color: Colors.grey[800]),
           ),
-        ],
-      ),
-    );
-  }
-
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildApprovedRecipientTile(Map<String, dynamic> recipient) {
     return Card(
       color: Colors.green[50],
@@ -339,7 +425,7 @@ class MyDonationCard extends StatelessWidget {
           backgroundColor: Colors.blue[100],
           child: Text(
             request['recipientName'][0].toUpperCase(),
-            style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold),
           ),
         ),
         title: Text(request['recipientName']),
@@ -349,9 +435,9 @@ class MyDonationCard extends StatelessWidget {
                 onPressed: () => handleApproval(context, request),
                 child: Text('Approve'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               )
@@ -360,4 +446,85 @@ class MyDonationCard extends StatelessWidget {
     );
   }
 }
-
+void _showPointsAchievementDialog(BuildContext context, int points) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green.shade300, Colors.green.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.stars_rounded,
+                color: Colors.yellow,
+                size: 80,
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Achievement Unlocked!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                  children: [
+                    TextSpan(text: 'You earned '),
+                    TextSpan(
+                      text: '$points Points',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.yellow,
+                      ),
+                    ),
+                    TextSpan(text: ' for your donation!'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  'Awesome!',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}

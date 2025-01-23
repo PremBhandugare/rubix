@@ -27,8 +27,8 @@ class App extends StatelessWidget {
       theme: ThemeData().copyWith(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-            seedColor:Colors.orange),
-            primaryColor: Colors.orange,
+            seedColor:Colors.green,),
+            primaryColor: Colors.green,
         textTheme: GoogleFonts.openSansTextTheme(),    
       ),
       home:StreamBuilder(
