@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rubix/screens/AuthScr.dart';
 import 'package:rubix/screens/donor/myDonScr.dart';
+import 'package:rubix/screens/donor/myPurchase.dart';
 import 'package:rubix/screens/donor/shopScr.dart';
 import 'package:rubix/screens/drawScr.dart';
+import 'package:rubix/screens/recepient/mapScr.dart';
 import 'package:rubix/screens/recepient/myreqScr.dart';
 import 'package:rubix/screens/recepient/reqScr.dart';
 import 'package:rubix/widgets/bottomnav.dart';
@@ -128,7 +130,15 @@ class _TabScrState extends State<TabScr> {
           actScr = MyRequestsScreen(currentUserId: userid!.uid);
         }
         actText = 'My Activity';
-        break;
+        break;  
+      case 2:
+        if (role == 'recepient'){ 
+        actScr = DonationsMapScreen();
+        }
+        else{
+          actScr = PurchasesScreen();
+        }
+        break;  
     }
   
 

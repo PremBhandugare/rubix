@@ -42,7 +42,7 @@ class BottomNavBar extends StatelessWidget {
           items: [
             _buildNavItem(context, Icons.home, 'Home', 0),
             _buildNavItem(context, Icons.volunteer_activism, 'MyActivity', 1),
-           // _buildNavItem(context, Icons.local_activity, 'Activity', 2),
+            _buildNavItem(context, Icons.pin, 'Activity', 2),
           ],
         ),
       ),
