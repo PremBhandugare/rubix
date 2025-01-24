@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class AvailableDonationsScreen extends StatelessWidget {
   final String currentUserId;
@@ -60,30 +59,33 @@ class AvailableDonationsScreen extends StatelessWidget {
           }
 
           return SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(width: 30,),
-                  Image.asset(
-                    'assets/globe.png',
-                    height: 30,
-                    width: 30,
-                  ),
-                  const SizedBox(width: 10,),
-                  Text(
-                    'Ahar Setu',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 30,0,0),
+              child: Column(
+                children: [
+                  const SizedBox(width: 30,),
+                    Image.asset(
+                      'assets/globe.png',
+                      height: 30,
+                      width: 30,
                     ),
-                  ),
+                    const SizedBox(width: 10,),
+                    Text(
+                      'Ahar Setu',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  
                 
-              
-              _buildHeroSection(),
-              SizedBox(height: 10),
-                _buildHorizontalList(context, donations, 'Fresh'),
-                _buildHorizontalList(context, donations, 'Canned'),
-                _buildHorizontalList(context, donations, 'Cooked'),
-                _buildHorizontalList(context, donations, 'Packaged'),
-              ],
+                _buildHeroSection(),
+                SizedBox(height: 10),
+                  _buildHorizontalList(context, donations, 'Cooked'),
+                  _buildHorizontalList(context, donations, 'Canned'),
+                  _buildHorizontalList(context, donations, 'Packaged'),
+                  _buildHorizontalList(context, donations, 'Fresh'),
+                ],
+              ),
             ),
           );
         },
@@ -92,10 +94,21 @@ class AvailableDonationsScreen extends StatelessWidget {
   }
 
   Widget _buildHorizontalList(BuildContext context, List<QueryDocumentSnapshot> donations, String category) {
-    final filteredDonations = donations.where((donation) {
-      final data = donation.data() as Map<String, dynamic>;
-      return category == 'All Donations' || data['foodCategory'] == category;
-    }).toList();
+     final now = DateTime.now();
+  final filteredDonations = donations.where((donation) {
+    final data = donation.data() as Map<String, dynamic>;
+    final expirationDate = (data['expirationDate'] as Timestamp).toDate();
+    
+    // Check both category and expiration date
+    return (category == data['foodCategory']) && 
+           (expirationDate.isAfter(now));
+  }).toList();
+
+  // Rest of the method remains the same as before
+  if (filteredDonations.isEmpty) {
+    return SizedBox.shrink(); // Don't show empty categories
+  }
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +158,11 @@ class AvailableDonationsScreen extends StatelessWidget {
                         data['foodName'],
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                          fontWeight: FontWeight.bold
+
+                        ),
+          
                       ),
                       Text(
                         'Expires: ${DateFormat('MMM dd').format(data['expirationDate'].toDate())}',
@@ -231,13 +248,13 @@ class AvailableDonationsScreen extends StatelessWidget {
                     onPressed: hasRequested ? null : () => _showInterest(context, donation),
                     child: Text(
                       hasRequested ? 'Request Sent' : 'Show Interest',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16,color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: hasRequested ? Colors.grey : Colors.green,
                       padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),

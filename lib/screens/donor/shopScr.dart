@@ -93,7 +93,7 @@ void _loadUserPoints() async {
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['Canned', 'Fresh', 'Packaged', 'Cooked'];
+    final categories = ['','Canned', 'Fresh', 'Packaged', 'Cooked'];
 
     return Scaffold(   
       body: ListView.builder(
@@ -104,7 +104,7 @@ void _loadUserPoints() async {
         return Center(
           child: Column(
             children: [
-              SizedBox(height: 30),
+              SizedBox(height: 80),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [

@@ -120,12 +120,13 @@ class _ItemDisplayDialogState extends State<ItemDisplayDialog> {
                 onPressed: widget.item['price'] <= _userPoints 
                     ? widget.onPurchase 
                     : null,
-                child: Text('Donate'),
+                child:Text('Buy',style: TextStyle(color: Colors.white),),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: widget.item['price'] <= _userPoints 
                       ? Colors.blue 
-                      : Colors.grey,
+                      : Colors.grey,    
                 ),
+                
               ),
             ],
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rubix/screens/AuthScr.dart';
+import 'package:rubix/screens/donor/leader.dart';
 import 'package:rubix/screens/donor/myDonScr.dart';
 import 'package:rubix/screens/donor/myPurchase.dart';
 import 'package:rubix/screens/donor/shopScr.dart';
@@ -127,7 +128,7 @@ class _TabScrState extends State<TabScr> {
         if (role == 'donor') {
           actScr = MyDonationsScreen(currentUserId: userid!.uid);
         } else {
-          actScr = MyRequestsScreen(currentUserId: userid!.uid);
+          actScr = LeaderboardScreen();
         }
         actText = 'My Activity';
         break;  
@@ -136,7 +137,7 @@ class _TabScrState extends State<TabScr> {
         actScr = DonationsMapScreen();
         }
         else{
-          actScr = PurchasesScreen();
+          actScr = LeaderboardScreen();
         }
         break;  
     }
@@ -162,7 +163,7 @@ class _TabScrState extends State<TabScr> {
           children: [
             // Main Screen Content
             Padding(
-              padding: EdgeInsets.fromLTRB(0, 40, 0, 64),
+              padding: EdgeInsets.fromLTRB(0, 0, 0, 64),
               child: actScr!,
             ),
 

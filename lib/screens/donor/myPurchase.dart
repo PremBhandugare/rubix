@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
 
 class PurchasesScreen extends StatefulWidget {
   @override
@@ -13,6 +16,58 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _contactController = TextEditingController();
   DateTime? _selectedExpiryDate;
+
+  String address = ''; // New field for address
+  GeoPoint? locationCoordinates;
+  double? latitude;
+  double? longitude;
+
+ Future<void> _convertAddressToCoordinates() async {
+  if (address.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Please enter a valid address'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  const apiKey = 'oyLqwKTDuilIERXSgG5B'; // Your MapTiler API key
+  final encodedAddress = Uri.encodeComponent(address);
+  final url = 'https://api.maptiler.com/geocoding/$encodedAddress.json?key=$apiKey';
+
+  try {
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['features'].isNotEmpty) {
+        final coordinates = data['features'][0]['center'];
+        setState(() {
+          locationCoordinates = GeoPoint(coordinates[1], coordinates[0]);
+          latitude = coordinates[1];
+          longitude = coordinates[0];
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to find coordinates'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        locationCoordinates = null;
+      }
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Geocoding error: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    locationCoordinates = null;
+  }
+}
 
   void _showDonationDialog(DocumentSnapshot purchase) {
     showDialog(
@@ -59,6 +114,21 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       },
                     ),
                     SizedBox(height: 16),
+                    TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Full Address',
+                      hintText: 'Enter complete pickup address',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.location_on),
+                    ),
+                    maxLines: 2,
+                    validator: (value) => value?.isEmpty ?? true ? 'Address is required' : null,
+                    onSaved: (value) {
+                      // Explicitly update the address variable
+                      address = value ?? '';
+                    },
+                  ),
+                    SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () async {
                         final pickedDate = await showDatePicker(
@@ -101,6 +171,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     if (_formKey.currentState!.validate() && _selectedExpiryDate != null) {
+                      _formKey.currentState!.save();
                       try {
                         await _submitDonation(purchase);
                         Navigator.of(context).pop();
@@ -131,6 +202,19 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     final firestore = FirebaseFirestore.instance;
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
+    await _convertAddressToCoordinates();
+
+    // Only proceed if coordinates were successfully obtained
+    if (locationCoordinates == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to process location. Please check your address.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
     await firestore.collection('donations').add({
       'userId': userId,
       'foodName': purchase['foodName'],
@@ -138,6 +222,9 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
       'expirationDate': Timestamp.fromDate(_selectedExpiryDate!),
       'foodCategory': purchase['foodCategory'],
       'contactDetails': _contactController.text,
+      'address': address, // Store raw address
+      'latitude': latitude,
+      'longitude': longitude,
       'imageUrl': purchase['imageUrl'],
       'timestamp': FieldValue.serverTimestamp(),
       'status': "available",

@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -26,7 +25,7 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
   DateTime? expirationDate;
   String foodCategory = 'Fresh';
   String contactDetails = '';
-   String address = ''; // New field for address
+  String address = ''; // New field for address
   GeoPoint? locationCoordinates;
   double? latitude;
   double? longitude;

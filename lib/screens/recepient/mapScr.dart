@@ -113,8 +113,8 @@ Widget build(BuildContext context) {
                         onTap: () => setState(() => _selectedDonationIndex = index),
                         child: Icon(
                           Icons.dining,
-                          color: _selectedDonationIndex == index ? Colors.red : Colors.blue,
-                          size: 30,
+                          color: _selectedDonationIndex == index ? Colors.red : Colors.green,
+                          size: 35,
                         ),
                       ),
                     );
@@ -283,13 +283,13 @@ void _showDonationDetails(BuildContext context, QueryDocumentSnapshot donation) 
                     onPressed: hasRequested ? null : () => _showInterest(context, donation),
                     child: Text(
                       hasRequested ? 'Request Sent' : 'Show Interest',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16,color: Colors.white),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: hasRequested ? Colors.grey : Colors.green,
                       padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),

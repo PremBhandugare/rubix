@@ -172,6 +172,7 @@ class _ImprovedDonationCard extends StatelessWidget {
           .collection('donors')
           .doc(FirebaseAuth.instance.currentUser!.uid)
           .update({
+        'totalpoints':FieldValue.increment(pointsToAllocate),    
         'points': FieldValue.increment(pointsToAllocate)
       });
       // After updating points
@@ -359,12 +360,12 @@ class _ImprovedDonationCard extends StatelessWidget {
 
     switch (status.toLowerCase()) {
       case 'available':
-        chipColor = Colors.green;
-        chipIcon = Icons.check_circle;
-        break;
-      case 'claimed':
         chipColor = Colors.orange;
         chipIcon = Icons.access_time;
+        break;
+      case 'claimed':
+        chipColor = Colors.green;
+        chipIcon = Icons.check_circle;
         break;
       default:
         chipColor = Colors.grey;
@@ -411,7 +412,7 @@ class _ImprovedDonationCard extends StatelessWidget {
           recipient['recipientName'],
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(recipient['recipientEmail']),
+        // subtitle: Text(recipient['recipientEmail']),
         trailing: Icon(Icons.verified_user, color: Colors.green),
       ),
     );
@@ -429,7 +430,7 @@ class _ImprovedDonationCard extends StatelessWidget {
           ),
         ),
         title: Text(request['recipientName']),
-        subtitle: Text(request['recipientEmail']),
+        //subtitle: Text(request['recipientEmail']),
         trailing: isAvailable
             ? ElevatedButton(
                 onPressed: () => handleApproval(context, request),
