@@ -135,9 +135,9 @@ class _LoginScrState extends State<LoginScr> {
           child: Column(
             children: [
               const SizedBox(height: 25,),
-              // Image.asset('assets/images/Logo.png',height: 80,),
-              // const SizedBox(height: 10,),
-              Text('FOOD Seva',style: TextStyle(
+              Image.asset('assets/globe.png',height: 80,),
+              const SizedBox(height: 10,),
+              Text('Ahar Setu',style: TextStyle(
                 color: Theme.of(context).primaryColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,

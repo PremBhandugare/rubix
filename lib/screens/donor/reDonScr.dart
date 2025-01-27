@@ -80,10 +80,12 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
   
   final List<String> categories = ['Fresh', 'Cooked', 'Canned', 'Packaged'];
 
-  Future<void> _pickImage() async {
+   Future<void> _pickImage({bool isCamera = false}) async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    
+    final XFile? image = await picker.pickImage(
+      source: isCamera ? ImageSource.camera : ImageSource.gallery,
+    );
+
     if (image != null) {
       setState(() {
         _image = File(image.path);
@@ -344,6 +346,7 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                   ),
                 ),
                 SizedBox(height: 16),
+                 // Image Picker Section
                 Card(
                   elevation: 4,
                   child: Padding(
@@ -356,29 +359,42 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         SizedBox(height: 16),
-                        Center(
-                          child: _image == null
-                              ? Icon(Icons.add_a_photo, size: 100, color: Colors.grey)
-                              : Image.file(_image!, height: 200),
-                        ),
-                        SizedBox(height: 16),
-                        Center(
-                          child: ElevatedButton.icon(
-                            icon: Icon(Icons.photo_camera),
-                            label: Text('Add Photo'),
-                            onPressed: _pickImage,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromARGB(255, 239, 239, 239),
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            ),
+                        if (_image != null)
+                          Image.file(
+                            _image!,
+                            height: 200,
+                            fit: BoxFit.cover,
                           ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _pickImage(isCamera: true),
+                              icon: Icon(Icons.camera_alt),
+                              label: Text('Click Image'),
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)
+                                )
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () => _pickImage(isCamera: false),
+                              icon: Icon(Icons.photo_library),
+                              label: Text('Gallery'),
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)
+                                )
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
+                SizedBox(height: 16),
                 SizedBox(height: 24),
                 ElevatedButton(
                   child: Padding(

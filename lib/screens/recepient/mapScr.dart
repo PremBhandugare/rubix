@@ -87,7 +87,13 @@ Widget build(BuildContext context) {
           return Center(child: Text('No available donations'));
         }
 
-        final donations = snapshot.data!.docs;
+         // Filter out expired donations
+        final now = DateTime.now();
+        final donations = snapshot.data!.docs.where((donation) {
+          final data = donation.data() as Map<String, dynamic>;
+          final expirationDate = (data['expirationDate'] as Timestamp).toDate();
+          return expirationDate.isAfter(now);
+        }).toList();
 
         return Stack(
           children: [
