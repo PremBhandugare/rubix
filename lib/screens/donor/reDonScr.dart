@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:io';
+
+import 'package:rubix/widgets/map_picker_widget.dart';
 
 class DonationRequestScreen extends StatefulWidget {
   const DonationRequestScreen({super.key});
@@ -110,23 +113,51 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
     }
   }
 
+Future<void> _openMapPicker() async {
+  final LatLng? selectedLocation = await showModalBottomSheet<LatLng>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(
+        top: 10,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+      ),
+      child: MapPickerScreen(
+        initialLocation: locationCoordinates != null
+            ? LatLng(locationCoordinates!.latitude, locationCoordinates!.longitude)
+            : null,
+      ),
+    ),
+  );
+
+  if (selectedLocation != null) {
+    setState(() {
+      locationCoordinates = GeoPoint(selectedLocation.latitude, selectedLocation.longitude);
+      latitude = selectedLocation.latitude;
+      longitude = selectedLocation.longitude;
+    });
+  }
+}
+
+
    Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
       // Convert address to coordinates before submission
-    await _convertAddressToCoordinates();
-
-    // Only proceed if coordinates were successfully obtained
+   // Only proceed if coordinates are selected
     if (locationCoordinates == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to process location. Please check your address.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a location from the map.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
       
 
      // Upload image if selected
@@ -284,38 +315,37 @@ class _DonationRequestScreenState extends State<DonationRequestScreen> {
                 SizedBox(height: 16),
                 // New Card for Address
                 Card(
-                  elevation: 4,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Location Details',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        SizedBox(height: 16),
-                        TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Full Address',
-                            hintText: 'Enter complete pickup address',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on),
-                          ),
-                          maxLines: 2,
-                          validator: (value) => value?.isEmpty ?? true ? 'Address is required' : null,
-                          onSaved: (value) => address = value ?? '',
-                        ),
-                        SizedBox(height: 8),
-                        if (locationCoordinates != null)
-                          Text(
-                            'Coordinates: ${locationCoordinates!.latitude}, ${locationCoordinates!.longitude}',
-                            style: TextStyle(color: Colors.green),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+  elevation: 4,
+  child: Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Location Details',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: _openMapPicker,
+          icon: Icon(Icons.map),
+          label: Text('Pick Location from Map'),
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        SizedBox(height: 8),
+        if (locationCoordinates != null)
+          Text(
+            'Coordinates: ${locationCoordinates!.latitude}, ${locationCoordinates!.longitude}',
+            style: TextStyle(color: Colors.green),
+          ),
+      ],
+    ),
+  ),
+),
                 SizedBox(height: 16),
 
                 Card(

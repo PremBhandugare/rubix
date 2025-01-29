@@ -1,14 +1,26 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 String? userId;
 String? emailId;
 String? usernamee;
+const Distance distance = Distance();
 class DonationsMapScreen extends StatefulWidget {
-  const DonationsMapScreen({super.key});
+   final LatLng? currentLocation;
+  final bool isLoadingLocation;
+
+  const DonationsMapScreen({
+    super.key, 
+    this.currentLocation,
+    this.isLoadingLocation = false,
+  });
 
   @override
   _DonationsMapScreenState createState() => _DonationsMapScreenState();
@@ -17,12 +29,101 @@ class DonationsMapScreen extends StatefulWidget {
 class _DonationsMapScreenState extends State<DonationsMapScreen> {
   final MapController _mapController = MapController();
   int _selectedDonationIndex = -1;
+  List<LatLng> _routePoints = [];
+  double _selectedDonationDistance = 0.0;
+  double _showdist = 0.0 ;
   List<QueryDocumentSnapshot> _donations = [];
+   bool _isLoadingRoute = false;
 
    @override
   void initState() {
     super.initState();
     _fetchUserData();
+    if (widget.currentLocation != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(widget.currentLocation!, 12);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(DonationsMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update map center when location changes
+    if (widget.currentLocation != null && 
+        widget.currentLocation != oldWidget.currentLocation) {
+      _mapController.move(widget.currentLocation!, 13);
+    }
+  }
+  
+  Future<List<LatLng>> fetchRoute(LatLng start, LatLng end) async {
+    try {
+      final response = await http.get(Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${start.longitude},${start.latitude};'
+        '${end.longitude},${end.latitude}'
+        '?overview=full&geometries=geojson'
+      ));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
+          return coordinates
+              .map((coord) => LatLng(coord[1].toDouble(), coord[0].toDouble()))
+              .toList();
+        }
+      }
+      throw Exception('Failed to fetch route');
+    } catch (e) {
+      print('Error fetching route: $e');
+      // Fallback to straight line if route fetching fails
+      return [start, end];
+    }
+  }
+
+  Future<void> _showRouteToDonation(LatLng donationLocation) async {
+    if (widget.currentLocation != null) {
+      setState(() {
+        _isLoadingRoute = true;
+      });
+
+      try {
+        final routePoints = await fetchRoute(widget.currentLocation!, donationLocation);
+        
+        setState(() {
+          _routePoints = routePoints;
+          // Calculate distance in kilometers
+        _showdist = distance.as(
+          LengthUnit.Kilometer,
+          widget.currentLocation!,
+          donationLocation,
+        );
+          // Calculate actual route distance
+          _selectedDonationDistance = 0;
+          for (int i = 0; i < routePoints.length - 1; i++) {
+            _selectedDonationDistance += distance.as(
+              LengthUnit.Kilometer,
+              routePoints[i],
+              routePoints[i + 1],
+            );
+          }
+        });
+        
+        // Adjust map bounds to show entire route
+        final bounds = LatLngBounds.fromPoints(_routePoints);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(50.0),
+          ),
+        );
+      } finally {
+        setState(() {
+          _isLoadingRoute = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -100,23 +201,63 @@ Widget build(BuildContext context) {
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                initialCenter: const LatLng(19.1136, 72.8697),
+                initialCenter: widget.currentLocation ?? const LatLng(19.1136, 72.8697),
                 initialZoom: 12.0,
-                onTap: (_, __) => setState(() => _selectedDonationIndex = -1),
+                onTap: (_, __) {
+                    setState(() {
+                      _selectedDonationIndex = -1;
+                      _routePoints = []; // Clear route when tapping map
+                    });
+                  },
               ),
               children: [
                 TileLayer(
                   urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=oyLqwKTDuilIERXSgG5B',
                 ),
+                PolylineLayer(
+                    polylines: [
+                      if (_routePoints.isNotEmpty)
+                        Polyline(
+                          points: _routePoints,
+                          strokeWidth: 4,
+                          color: Colors.blue,
+                        ),
+                    ],
+                  ),
                 MarkerLayer(
-                  markers: List.generate(donations.length, (index) {
+                  markers: [
+                    // Current location marker
+                      if (widget.currentLocation != null)
+                        Marker(
+                          point: widget.currentLocation!,
+                          width: 40,
+                          height: 40,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.blue, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.my_location,
+                              color: Colors.blue,
+                              size: 25,
+                            ),
+                          ),
+                        ),
+                    
+                    
+                    ...List.generate(donations.length, (index) {
                     final donation = donations[index].data() as Map<String, dynamic>;
                     return Marker(
                       point: LatLng(donation['latitude'], donation['longitude']),
                       width: 40,
                       height: 40,
                       child: GestureDetector(
-                        onTap: () => setState(() => _selectedDonationIndex = index),
+                        onTap: () {
+                              setState(() => _selectedDonationIndex = index);
+                              _showRouteToDonation(LatLng(donation['latitude'],donation['longitude']));
+                            },
                         child: Icon(
                           Icons.dining,
                           color: _selectedDonationIndex == index ? Colors.red : Colors.green,
@@ -125,9 +266,27 @@ Widget build(BuildContext context) {
                       ),
                     );
                   }),
+                  ]
                 ),
+                
               ],
             ),
+            if (_isLoadingRoute)
+                const Center(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Calculating route...'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
           if (_selectedDonationIndex != -1)
   Positioned(
     left: 16,
@@ -138,86 +297,68 @@ Widget build(BuildContext context) {
         _showDonationDetails(context, donations[_selectedDonationIndex]);
       },
       child: Card(
-        elevation: 10,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+  elevation: 8,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  color: Colors.white,
+  child: Padding(
+    padding: const EdgeInsets.all(10), // Reduced padding
+    child: Wrap(
+      crossAxisAlignment: WrapCrossAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.fastfood, color: Theme.of(context).colorScheme.primary, size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                (donations[_selectedDonationIndex].data() as Map<String, dynamic>)['foodName'],
+                style: const TextStyle(
+                  fontSize: 18, // Smaller font
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                maxLines: 1, // Reduced max lines
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const Divider(),
+        if (widget.currentLocation != null && _showdist > 0)
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(Icons.fastfood, color: Theme.of(context).colorScheme.primary, size: 28),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      (donations[_selectedDonationIndex].data() as Map<String, dynamic>)['foodName'],
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.category, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Category: ${(donations[_selectedDonationIndex].data() as Map<String, dynamic>)['foodCategory']}',
-                      style: const TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.shopping_basket, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Quantity: ${(donations[_selectedDonationIndex].data() as Map<String, dynamic>)['quantity']}',
-                      style: const TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Address: ${(donations[_selectedDonationIndex].data() as Map<String, dynamic>)['address']}',
-                      style: const TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
-                  ),
-                ],
+              Icon(Icons.directions, color: Theme.of(context).colorScheme.primary, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                '${_showdist.toStringAsFixed(1)} km',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
               ),
             ],
           ),
-        ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+                'More Info',
+                style: const TextStyle(fontSize: 14, color: Colors.blue),
+              ),
+      ],
     ),
-  )
+  ),
+),
+    ),
+  ),
+  
         ],
+        
+        
       );
-}));
+}
+),
+floatingActionButton: widget.currentLocation != null ? FloatingActionButton(
+        onPressed: () => _mapController.move(widget.currentLocation!, 13),
+        child: const Icon(Icons.my_location),
+      ) : null,
+);
+
   }
 }
 void _showDonationDetails(BuildContext context, QueryDocumentSnapshot donation) {

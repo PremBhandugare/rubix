@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:rubix/screens/AuthScr.dart';
 import 'package:rubix/screens/donor/leader.dart';
 import 'package:rubix/screens/donor/myDonScr.dart';
@@ -28,10 +30,43 @@ class _TabScrState extends State<TabScr> {
   String email = '';
   String role = '';
   String emailID = '';
+   LatLng? currentLocation;
+  bool isLoadingLocation = true;
+
   @override
   void initState() {
     super.initState();
     _fetchUserData();
+    _getCurrentLocation(); // Add this
+  }
+
+  // Add this method
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => isLoadingLocation = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() => isLoadingLocation = false);
+          return;
+        }
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        currentLocation = LatLng(position.latitude, position.longitude);
+        isLoadingLocation = false;
+      });
+    } catch (e) {
+      print("Error getting location: $e");
+      setState(() => isLoadingLocation = false);
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -134,7 +169,10 @@ class _TabScrState extends State<TabScr> {
         break;  
       case 2:
         if (role == 'recepient'){ 
-        actScr = DonationsMapScreen();
+        actScr = DonationsMapScreen(
+        currentLocation: currentLocation,
+        isLoadingLocation: isLoadingLocation
+      );
         }
         else{
           actScr = LeaderboardScreen();

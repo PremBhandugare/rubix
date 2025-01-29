@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
+import 'package:rubix/widgets/map_picker_widget.dart';
 
 
 class PurchasesScreen extends StatefulWidget {
@@ -21,6 +23,35 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   GeoPoint? locationCoordinates;
   double? latitude;
   double? longitude;
+
+Future<void> _openMapPicker() async {
+  final LatLng? selectedLocation = await showModalBottomSheet<LatLng>(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(
+        top: 10,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+      ),
+      child: MapPickerScreen(
+        initialLocation: locationCoordinates != null
+            ? LatLng(locationCoordinates!.latitude, locationCoordinates!.longitude)
+            : null,
+      ),
+    ),
+  );
+
+  if (selectedLocation != null) {
+    setState(() {
+      locationCoordinates = GeoPoint(selectedLocation.latitude, selectedLocation.longitude);
+      latitude = selectedLocation.latitude;
+      longitude = selectedLocation.longitude;
+    });
+  }
+}
 
  Future<void> _convertAddressToCoordinates() async {
   if (address.trim().isEmpty) {
@@ -113,22 +144,24 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         return null;
                       },
                     ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Full Address',
-                      hintText: 'Enter complete pickup address',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on),
-                    ),
-                    maxLines: 2,
-                    validator: (value) => value?.isEmpty ?? true ? 'Address is required' : null,
-                    onSaved: (value) {
-                      // Explicitly update the address variable
-                      address = value ?? '';
-                    },
-                  ),
-                    SizedBox(height: 16),
+                    SizedBox(height: 10),
+                    ElevatedButton.icon(
+  onPressed: _openMapPicker,
+  icon: Icon(Icons.map),
+  label: Text('Pick Location from Map'),
+  style: ElevatedButton.styleFrom(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+    ),
+  ),
+),
+SizedBox(height: 8),
+if (locationCoordinates != null)
+  Text(
+    'Coordinates Picked',
+    style: TextStyle(color: Colors.green),
+  ),
+                    SizedBox(height: 8),
                     ElevatedButton.icon(
                       onPressed: () async {
                         final pickedDate = await showDatePicker(
@@ -199,45 +232,41 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   }
 
   Future<void> _submitDonation(DocumentSnapshot purchase) async {
-    final firestore = FirebaseFirestore.instance;
-    final userId = FirebaseAuth.instance.currentUser!.uid;
+  final firestore = FirebaseFirestore.instance;
+  final userId = FirebaseAuth.instance.currentUser!.uid;
 
-    await _convertAddressToCoordinates();
-
-    // Only proceed if coordinates were successfully obtained
-    if (locationCoordinates == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to process location. Please check your address.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-    await firestore.collection('donations').add({
-      'userId': userId,
-      'foodName': purchase['foodName'],
-      'quantity': purchase['quantity'] ?? 1,
-      'expirationDate': Timestamp.fromDate(_selectedExpiryDate!),
-      'foodCategory': purchase['foodCategory'],
-      'contactDetails': _contactController.text,
-      'address': address, // Store raw address
-      'latitude': latitude,
-      'longitude': longitude,
-      'imageUrl': purchase['imageUrl'],
-      'timestamp': FieldValue.serverTimestamp(),
-      'status': "available",
-      'recipients': {
-        'requests': [],
-        'accepted': null
-      },
-    });
-
-    // Mark the purchase as donated
-    await purchase.reference.update({'donated': true});
+  // Only proceed if coordinates are selected
+  if (locationCoordinates == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Please select a location from the map.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
   }
 
+  await firestore.collection('donations').add({
+    'userId': userId,
+    'foodName': purchase['foodName'],
+    'quantity': purchase['quantity'] ?? 1,
+    'expirationDate': Timestamp.fromDate(_selectedExpiryDate!),
+    'foodCategory': purchase['foodCategory'],
+    'contactDetails': _contactController.text,
+    'latitude': latitude,
+    'longitude': longitude,
+    'imageUrl': purchase['imageUrl'],
+    'timestamp': FieldValue.serverTimestamp(),
+    'status': "available",
+    'recipients': {
+      'requests': [],
+      'accepted': null,
+    },
+  });
+
+  // Mark the purchase as donated
+  await purchase.reference.update({'donated': true});
+}
   // Rest of the build method remains the same as in the previous version
   @override
   Widget build(BuildContext context) {
